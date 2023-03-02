@@ -13,8 +13,19 @@ type Product struct {
 	Description string `json:"description"`
 }
 
+type Image struct {
+	ID          int    `json:"id"`
+	ProductID   int    `json:"productId"`
+	Name        string `json:"name"`
+	ContentType string `json:"contentType"`
+}
+
 type productList struct {
 	Products []Product `json:"products"`
+}
+
+type imagesList struct {
+	Images []Image `json:"images"`
 }
 
 var products = productList{
@@ -24,9 +35,41 @@ var products = productList{
 	},
 }
 
+var images = imagesList{
+	Images: []Image{
+		{ID: 1, ProductID: 1, Name: "Image 1", ContentType: "image/jpeg"},
+		{ID: 2, ProductID: 2, Name: "Image 2", ContentType: "image/jpeg"},
+	},
+}
+
 func getProducts(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(products)
+}
+
+func getImageById(w http.ResponseWriter, r *http.Request) {
+	id := getIdFromRequest(r)
+	for _, image := range images.Images {
+		if image.ProductID == id {
+			w.Header().Set("Content-Type", image.ContentType)
+			json.NewEncoder(w).Encode(image)
+			return
+		}
+	}
+	http.NotFound(w, r)
+}
+
+func addImage(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	var image Image
+	err := json.NewDecoder(r.Body).Decode(&image)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	image.ID = getNextId()
+	images.Images = append(images.Images, image)
+	json.NewEncoder(w).Encode(image)
 }
 
 func getProduct(w http.ResponseWriter, r *http.Request) {
@@ -105,6 +148,8 @@ func main() {
 	http.HandleFunc("/add-product", addProduct)
 	http.HandleFunc("/update-product", updateProduct)
 	http.HandleFunc("/delete-product", deleteProduct)
+	http.HandleFunc("/add-image", addImage)
+	http.HandleFunc("/get-image", getImageById)
 
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
